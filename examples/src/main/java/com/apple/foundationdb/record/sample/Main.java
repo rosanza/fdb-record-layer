@@ -450,12 +450,17 @@ public class Main {
                     .setFilter(Query.field("email_address").oneOfThem().startsWith("john"))
                     .build();
             Map<String, List<String>> addressMap = new HashMap<>();
-            try (RecordCursor<FDBQueriedRecord<Message>> cursor = store.executeQuery(query)) {
-                cursor.forEach((FDBQueriedRecord<Message> record) -> {
-                    SampleProto.Customer.Builder builder = SampleProto.Customer.newBuilder().mergeFrom(record.getRecord());
-                    addressMap.put(builder.getFirstName() + " " + builder.getLastName(),
-                            builder.getEmailAddressList());
-                });
+            RecordQueryPlan plan = store.planQuery(query);
+            try (RecordCursor<FDBQueriedRecord<Message>> cursor = store.executeQuery(plan)) {
+                RecordCursorResult<FDBQueriedRecord<Message>> result;
+                do {
+                    result = cursor.getNext();
+                    if (result.hasNext()) {
+                        RecordLayerDemoProto.Customer.Builder builder = RecordLayerDemoProto.Customer.newBuilder().mergeFrom(result.get().getRecord());
+                        addressMap.put(builder.getFirstName() + " " + builder.getLastName(),
+                                builder.getEmailAddressList());
+                    }
+                } while (result.hasNext());
             }
             return addressMap;
         });
